@@ -9,8 +9,15 @@ import streamlit as st
 import yaml
 from dotenv import load_dotenv
 from langchain.chat_models import init_chat_model
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
+from langchain_core.messages import (
+    AIMessage,
+    BaseMessage,
+    HumanMessage,
+    SystemMessage,
+    ToolMessage,
+)
 from langchain_mcp_adapters.client import MultiServerMCPClient
+from PROMPTS import SYSTEM_PROMPT
 
 load_dotenv()
 
@@ -117,7 +124,9 @@ async def main():
                 gathered = None
                 first = True
                 out = {}
-                async for chunk in chain.astream(messages):
+                async for chunk in chain.astream(
+                    [SystemMessage(SYSTEM_PROMPT)] + messages
+                ):
                     if first:
                         gathered = chunk
                         first = False
