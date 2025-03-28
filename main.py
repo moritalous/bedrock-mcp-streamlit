@@ -7,9 +7,12 @@ from pathlib import Path
 
 import streamlit as st
 import yaml
-from langchain_aws import ChatBedrockConverse
+from dotenv import load_dotenv
+from langchain.chat_models import init_chat_model
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
 from langchain_mcp_adapters.client import MultiServerMCPClient
+
+load_dotenv()
 
 
 def select_chat(chat_history_file):
@@ -17,14 +20,39 @@ def select_chat(chat_history_file):
 
 
 models = {
-    "Amazon Nova Micro": "bedrock/us.amazon.nova-micro-v1:0",
-    "Amazon Nova Lite": "bedrock/us.amazon.nova-lite-v1:0",
-    "Amazon Nova Pro": "bedrock/us.amazon.nova-pro-v1:0",
-    "Claude 3.7 Sonnet(Bedrock)": "bedrock/us.anthropic.claude-3-7-sonnet-20250219-v1:0",
-    "Gemini 2.5 Pro": "gemini/gemini-2.5-pro-exp-03-25",
-    "Gemini 2.0 Flash": "gemini/gemini-2.0-flash",
-    "Gemini 2.0 Flash Thinking": "gemini/gemini-2.0-flash-thinking-exp-01-21",
-    "Grok 2": "xai/grok-2-latest",
+    "Amazon Nova Micro": {
+        "model_provider": "bedrock",
+        "model": "us.amazon.nova-micro-v1:0",
+    },
+    "Amazon Nova Lite": {
+        "model_provider": "bedrock",
+        "model": "us.amazon.nova-lite-v1:0",
+    },
+    "Amazon Nova Pro": {
+        "model_provider": "bedrock",
+        "model": "us.amazon.nova-pro-v1:0",
+    },
+    "Claude 3.7 Sonnet(Bedrock)": {
+        "model_provider": "bedrock",
+        "model": "us.anthropic.claude-3-7-sonnet-20250219-v1:0",
+    },
+    "Gemini 2.5 Pro": {
+        "model_provider": "google_genai",
+        "model": "gemini-2.5-pro-exp-03-25",
+    },
+    "Gemini 2.0 Flash": {
+        "model_provider": "google_genai",
+        "model": "gemini-2.0-flash",
+    },
+    # Gemini 2.0 Flash Thinking not support tool use.
+    # "Gemini 2.0 Flash Thinking": {
+    #     "model_provider": "google_genai",
+    #     "model": "gemini-2.0-flash-thinking-exp-01-21",
+    # },
+    "Grok 2": {
+        "model_provider": "xai",
+        "model": "grok-2-latest",
+    },
 }
 chat_history_dir = "chat_history"
 if "chat_history_file" not in st.session_state:
@@ -70,8 +98,9 @@ async def main():
 
         messages.append(HumanMessage(prompt))
 
-        chat_model = ChatBedrockConverse(
-            model="us.amazon.nova-pro-v1:0",
+        chat_model = init_chat_model(
+            model_provider=models[selected_model]["model_provider"],
+            model=models[selected_model]["model"],
         )
 
         # Read MCP tool definitions
@@ -95,19 +124,34 @@ async def main():
                     else:
                         gathered = gathered + chunk
 
-                    for content in gathered.content:
-                        content_type = content["type"]
-                        index = str(content["index"])
+                    if isinstance(gathered.content, str):
+                        index = str(gathered.id)
+                        if index not in out:
+                            out[index] = st.chat_message("assistant").empty()
+                        out[index].write(gathered.content)
+                    else:
+                        for content in gathered.content:
+                            index = str(content["index"])
+                            if "type" in content:
+                                if content["type"] == "text":
+                                    if index not in out:
+                                        out[index] = st.chat_message(
+                                            "assistant"
+                                        ).empty()
 
-                        if content_type == "text":
-                            if index not in out:
-                                out[index] = st.chat_message("assistant").empty()
+                                    out[index].write(content["text"])
+                            else:
+                                if index not in out:
+                                    out[index] = st.chat_message("assistant").empty()
 
-                            out[index].write(content["text"])
+                                out[index].write(content["text"])
 
                 # Convert input from string to JSON to break through Converse API validation check
                 if isinstance(gathered.content, str):
-                    if gathered.content["type"] == "tool_use":
+                    if (
+                        "type" in gathered.content
+                        and gathered.content["type"] == "tool_use"
+                    ):
                         gathered.content["input"] = json.loads(
                             gathered.content["input"]
                         )
@@ -144,9 +188,9 @@ async def main():
 
 
 with st.sidebar:
-    selected_model = st.selectbox("モデル", models.keys())
+    selected_model = st.selectbox("LLM", models.keys())
     st.button(
-        "新規チャット",
+        "New Chat",
         on_click=select_chat,
         args=(f"{int(time.time())}.yaml",),
         use_container_width=True,

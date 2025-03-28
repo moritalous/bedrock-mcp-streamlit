@@ -1,7 +1,7 @@
 [project]
 name = "Bedrock_Chat_with_MCP_tool"
 version = "0.1.0"
-description = "Bedrock Chat with MCP tool"
+description = "Streamlit chat app with MCP tool"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -9,4 +9,12 @@ dependencies = [
     "langchain-aws>=0.2.18",
     "langchain-mcp-adapters>=0.0.5",
     "streamlit>=1.44.0",
+]
+
+[dependency-groups]
+google-genai = [
+    "langchain-google-genai>=2.1.2",
+]
+xai = [
+    "langchain-xai>=0.2.2",
 ]
