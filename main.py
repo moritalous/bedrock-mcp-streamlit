@@ -1,33 +1,67 @@
 import asyncio
+import glob
 import json
+import os
+import time
+from pathlib import Path
 
 import streamlit as st
+import yaml
 from langchain_aws import ChatBedrockConverse
-from langchain_core.messages import (
-    AIMessage,
-    HumanMessage,
-)
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
 from langchain_mcp_adapters.client import MultiServerMCPClient
+
+
+def select_chat(chat_history_file):
+    st.session_state.chat_history_file = chat_history_file
+
+
+models = {
+    "Amazon Nova Micro": "bedrock/us.amazon.nova-micro-v1:0",
+    "Amazon Nova Lite": "bedrock/us.amazon.nova-lite-v1:0",
+    "Amazon Nova Pro": "bedrock/us.amazon.nova-pro-v1:0",
+    "Claude 3.7 Sonnet(Bedrock)": "bedrock/us.anthropic.claude-3-7-sonnet-20250219-v1:0",
+    "Gemini 2.5 Pro": "gemini/gemini-2.5-pro-exp-03-25",
+    "Gemini 2.0 Flash": "gemini/gemini-2.0-flash",
+    "Gemini 2.0 Flash Thinking": "gemini/gemini-2.0-flash-thinking-exp-01-21",
+    "Grok 2": "xai/grok-2-latest",
+}
+chat_history_dir = "chat_history"
+if "chat_history_file" not in st.session_state:
+    st.session_state["chat_history_file"] = (
+        f"{chat_history_dir}/{int(time.time())}.yaml"
+    )
+chat_history_file = st.session_state.chat_history_file
 
 st.title("Chat app with MCP tool")
 
-# Manage chat history in session
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-messages = st.session_state.messages
+if Path(chat_history_file).exists():
+    with open(chat_history_file, mode="rt") as f:
+        yaml_msg = yaml.safe_load(f)
+        messages: list[BaseMessage] = []
+        for m in yaml_msg:
+            if m["type"] == "human":
+                messages.append(HumanMessage.model_validate(m))
+            elif m["type"] == "ai":
+                messages.append(AIMessage.model_validate(m))
+            elif m["type"] == "tool":
+                messages.append(ToolMessage.model_validate(m))
+
+else:
+    messages = []
 
 
 async def main():
     # Display chat messages
     for message in messages:
-        if isinstance(message, HumanMessage) or isinstance(message, AIMessage):
+        if message.type in ["ai", "human"]:
             with st.chat_message(message.type):
                 if isinstance(message.content, str):
                     st.write(message.content)
                 elif isinstance(message.content, list):
-                    for c in message.content:
-                        if "text" in c:
-                            st.write(c["text"])
+                    for content in message.content:
+                        if "text" in content:
+                            st.write(content["text"])
 
     # Process when input in chat box
     if prompt := st.chat_input():
@@ -62,10 +96,10 @@ async def main():
                         gathered = gathered + chunk
 
                     for content in gathered.content:
-                        type = content["type"]
+                        content_type = content["type"]
                         index = str(content["index"])
 
-                        if type == "text":
+                        if content_type == "text":
                             if index not in out:
                                 out[index] = st.chat_message("assistant").empty()
 
@@ -92,7 +126,11 @@ async def main():
                         selected_tool = {tool.name: tool for tool in tools}[
                             tool_call["name"].lower()
                         ]
-                        tool_msg = await selected_tool.ainvoke(tool_call)
+                        try:
+                            tool_msg = await selected_tool.ainvoke(tool_call)
+
+                        except Exception as e:
+                            tool_msg = ToolMessage(str(e), tool_call_id=tool_call["id"])
 
                         with st.expander("Tool Result", expanded=False):
                             st.write(tool_msg)
@@ -100,6 +138,25 @@ async def main():
                         messages.append(tool_msg)
                 else:
                     break
+
+        with open(chat_history_file, mode="wt") as f:
+            yaml.safe_dump([m.model_dump() for m in messages], f, allow_unicode=True)
+
+
+with st.sidebar:
+    selected_model = st.selectbox("モデル", models.keys())
+    st.button(
+        "新規チャット",
+        on_click=select_chat,
+        args=(f"{int(time.time())}.yaml",),
+        use_container_width=True,
+        type="primary",
+    )
+
+    history_files = glob.glob(os.path.join(chat_history_dir, "*.yaml"))
+
+    for h in sorted(history_files, reverse=True):
+        st.button(h, on_click=select_chat, args=(h,), use_container_width=True)
 
 
 asyncio.run(main())
