@@ -1,0 +1,12 @@
+[project]
+name = "Bedrock Chat with MCP tool"
+version = "0.1.0"
+description = "Bedrock Chat with MCP tool"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "langchain>=0.3.21",
+    "langchain-aws>=0.2.18",
+    "langchain-mcp-adapters>=0.0.5",
+    "streamlit>=1.44.0",
+]
