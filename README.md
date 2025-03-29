@@ -33,7 +33,7 @@ The application uses Langchain and Bedrock to create a chat model, using the mod
 3.  Run the application:
 
     ```bash
-    streamlit run main.py
+    streamlit run src/main.py
     ```
 
 ## Configuration
@@ -56,7 +56,7 @@ The `mcp_config.json` file should contain the configuration for the MCP servers.
 
 ## Usage
 
-1.  Run the application using `streamlit run main.py`.
+1.  Run the application using `streamlit run src/main.py`.
 2.  Enter your message in the chat input.
 3.  The application will respond using the chat model and MCP tools.
 

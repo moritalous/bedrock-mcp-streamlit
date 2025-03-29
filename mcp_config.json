@@ -9,6 +9,16 @@
                 "mcp/fetch"
             ],
             "transport": "stdio"
+        },
+        "time": {
+            "command": "docker",
+            "args": [
+                "run",
+                "-i",
+                "--rm",
+                "mcp/time"
+            ],
+            "transport": "stdio"
         }
     }
 }
