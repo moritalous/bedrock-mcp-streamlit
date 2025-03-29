@@ -76,7 +76,9 @@ class MessageProcessor:
                             tool_msg = await selected_tool.ainvoke(tool_call)
 
                         except Exception as e:
-                            tool_msg = ToolMessage(str(e), tool_call_id=tool_call["id"])
+                            tool_msg = ToolMessage(
+                                str(e), tool_call_id=tool_call["id"], status="error"
+                            )
 
                         container.expander("Tool Result", expanded=False).write(
                             tool_msg
