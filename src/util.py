@@ -66,6 +66,11 @@ class MessageProcessor:
                         selected_tool = {tool.name: tool for tool in tools}[
                             tool_call["name"].lower()
                         ]
+
+                        container.expander("Tool Call", expanded=False).write(
+                            tool_call
+                        )
+
                         try:
                             tool_msg = await selected_tool.ainvoke(tool_call)
 

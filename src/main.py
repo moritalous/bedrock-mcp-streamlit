@@ -30,7 +30,7 @@ async def main():
         st.session_state.chat_history_file = chat_history_file
 
     with st.sidebar:
-        with st.expander(":gear: config", expanded=False):
+        with st.expander(":gear: config", expanded=True):
             selected_model = st.selectbox("LLM", models.keys())
             chat_history_dir = st.text_input(
                 "chat_history_dir", value=config["chat_history_dir"]
@@ -41,7 +41,7 @@ async def main():
         st.button(
             "New Chat",
             on_click=select_chat,
-            args=(f"{int(time.time())}.yaml",),
+            args=(f"{chat_history_dir}/{int(time.time())}.yaml",),
             use_container_width=True,
             type="primary",
         )
@@ -100,7 +100,7 @@ async def main():
     with st.sidebar:
         history_files = glob.glob(os.path.join(chat_history_dir, "*.yaml"))
 
-        for h in sorted(history_files, reverse=True):
+        for h in sorted(history_files, reverse=True)[:20]:  # 最新20件表示
             st.button(h, on_click=select_chat, args=(h,), use_container_width=True)
 
 
