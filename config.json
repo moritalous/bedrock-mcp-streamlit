@@ -1,0 +1,34 @@
+{
+  "chat_history_dir": "chat_history",
+  "mcp_config_file": "mcp_config.json",
+  "models": {
+    "Amazon Nova Micro": {
+      "model_provider": "bedrock",
+      "model": "us.amazon.nova-micro-v1:0"
+    },
+    "Amazon Nova Lite": {
+      "model_provider": "bedrock",
+      "model": "us.amazon.nova-lite-v1:0"
+    },
+    "Amazon Nova Pro": {
+      "model_provider": "bedrock",
+      "model": "us.amazon.nova-pro-v1:0"
+    },
+    "Claude 3.7 Sonnet(Bedrock)": {
+      "model_provider": "bedrock",
+      "model": "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
+    },
+    "Gemini 2.5 Pro": {
+      "model_provider": "google_genai",
+      "model": "gemini-2.5-pro-exp-03-25"
+    },
+    "Gemini 2.0 Flash": {
+      "model_provider": "google_genai",
+      "model": "gemini-2.0-flash"
+    },
+    "Grok 2": {
+      "model_provider": "xai",
+      "model": "grok-2-latest"
+    }
+  }
+}

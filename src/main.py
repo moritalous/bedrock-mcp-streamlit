@@ -1,5 +1,6 @@
 import asyncio
 import glob
+import json
 import os
 import time
 from pathlib import Path
@@ -20,43 +21,10 @@ load_dotenv()
 
 
 async def main():
-    models = {
-        "Amazon Nova Micro": {
-            "model_provider": "bedrock",
-            "model": "us.amazon.nova-micro-v1:0",
-        },
-        "Amazon Nova Lite": {
-            "model_provider": "bedrock",
-            "model": "us.amazon.nova-lite-v1:0",
-        },
-        "Amazon Nova Pro": {
-            "model_provider": "bedrock",
-            "model": "us.amazon.nova-pro-v1:0",
-        },
-        "Claude 3.7 Sonnet(Bedrock)": {
-            "model_provider": "bedrock",
-            "model": "us.anthropic.claude-3-7-sonnet-20250219-v1:0",
-        },
-        "Gemini 2.5 Pro": {
-            "model_provider": "google_genai",
-            "model": "gemini-2.5-pro-exp-03-25",
-        },
-        "Gemini 2.0 Flash": {
-            "model_provider": "google_genai",
-            "model": "gemini-2.0-flash",
-        },
-        # Gemini 2.0 Flash Thinking not support tool use.
-        # "Gemini 2.0 Flash Thinking": {
-        #     "model_provider": "google_genai",
-        #     "model": "gemini-2.0-flash-thinking-exp-01-21",
-        # },
-        "Grok 2": {
-            "model_provider": "xai",
-            "model": "grok-2-latest",
-        },
-    }
+    with open("config.json", "r") as f:
+        config = json.load(f)
 
-    # chat_history_dir = "chat_history"
+    models = config["models"]
 
     def select_chat(chat_history_file):
         st.session_state.chat_history_file = chat_history_file
@@ -64,8 +32,12 @@ async def main():
     with st.sidebar:
         with st.expander(":gear: config", expanded=False):
             selected_model = st.selectbox("LLM", models.keys())
-            chat_history_dir = st.text_input("chat_history_dir", value="chat_history")
-            mcp_config_file = st.text_input("mcp_config_file", value="mcp_config.json")
+            chat_history_dir = st.text_input(
+                "chat_history_dir", value=config["chat_history_dir"]
+            )
+            mcp_config_file = st.text_input(
+                "mcp_config_file", value=config["mcp_config_file"]
+            )
         st.button(
             "New Chat",
             on_click=select_chat,
