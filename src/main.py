@@ -56,18 +56,16 @@ async def main():
         },
     }
 
-    chat_history_dir = "chat_history"
-    if "chat_history_file" not in st.session_state:
-        st.session_state["chat_history_file"] = (
-            f"{chat_history_dir}/{int(time.time())}.yaml"
-        )
-    chat_history_file = st.session_state.chat_history_file
+    # chat_history_dir = "chat_history"
 
     def select_chat(chat_history_file):
         st.session_state.chat_history_file = chat_history_file
 
     with st.sidebar:
-        selected_model = st.selectbox("LLM", models.keys())
+        with st.expander(":gear: config", expanded=False):
+            selected_model = st.selectbox("LLM", models.keys())
+            chat_history_dir = st.text_input("chat_history_dir", value="chat_history")
+            mcp_config_file = st.text_input("mcp_config_file", value="mcp_config.json")
         st.button(
             "New Chat",
             on_click=select_chat,
@@ -75,6 +73,12 @@ async def main():
             use_container_width=True,
             type="primary",
         )
+
+    if "chat_history_file" not in st.session_state:
+        st.session_state["chat_history_file"] = (
+            f"{chat_history_dir}/{int(time.time())}.yaml"
+        )
+    chat_history_file = st.session_state.chat_history_file
 
     st.title("Chat app with MCP tool")
 
@@ -109,7 +113,7 @@ async def main():
         with st.chat_message("user"):
             st.write(prompt)
 
-        message_processor_factory = MessageProcessorFactory()
+        message_processor_factory = MessageProcessorFactory(mcp_config_file)
         message_processor = message_processor_factory.create_processor(
             model_provider=models[selected_model]["model_provider"],
             model=models[selected_model]["model"],
