@@ -2,21 +2,41 @@
   "chat_history_dir": "chat_history",
   "mcp_config_file": "mcp_config.json",
   "models": {
-    "Amazon Nova Micro": {
-      "model_provider": "bedrock",
-      "model": "us.amazon.nova-micro-v1:0"
+    "Claude 3.7 Sonnet": {
+      "model_provider": "bedrock_converse",
+      "model": "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
     },
-    "Amazon Nova Lite": {
-      "model_provider": "bedrock",
-      "model": "us.amazon.nova-lite-v1:0"
+    "Claude 3.5 Sonnet": {
+      "model_provider": "bedrock_converse",
+      "model": "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
+    },
+    "Claude 3.5 Haiku": {
+      "model_provider": "bedrock_converse",
+      "model": "us.anthropic.claude-3-5-haiku-20241022-v1:0"
+    },
+    "Claude 3 Haiku": {
+      "model_provider": "bedrock_converse",
+      "model": "us.anthropic.claude-3-haiku-20240307-v1:0"
     },
     "Amazon Nova Pro": {
-      "model_provider": "bedrock",
+      "model_provider": "bedrock_converse",
       "model": "us.amazon.nova-pro-v1:0"
     },
-    "Claude 3.7 Sonnet(Bedrock)": {
-      "model_provider": "bedrock",
-      "model": "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
+    "Amazon Nova Lite": {
+      "model_provider": "bedrock_converse",
+      "model": "us.amazon.nova-lite-v1:0"
+    },
+    "Amazon Nova Micro": {
+      "model_provider": "bedrock_converse",
+      "model": "us.amazon.nova-micro-v1:0"
+    },
+    "GPT-4o": {
+      "model_provider": "openai",
+      "model": "gpt-4o"
+    },
+    "GPT-4o-mini": {
+      "model_provider": "openai",
+      "model": "gpt-4o-mini"
     },
     "Gemini 2.5 Pro": {
       "model_provider": "google_genai",

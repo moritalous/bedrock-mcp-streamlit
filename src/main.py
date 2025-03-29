@@ -10,6 +10,7 @@ import yaml
 from dotenv import load_dotenv
 from langchain_core.messages import (
     AIMessage,
+    AIMessageChunk,
     BaseMessage,
     HumanMessage,
     ToolMessage,
@@ -38,6 +39,7 @@ async def main():
             mcp_config_file = st.text_input(
                 "mcp_config_file", value=config["mcp_config_file"]
             )
+
         st.button(
             "New Chat",
             on_click=select_chat,
@@ -61,6 +63,8 @@ async def main():
             for m in yaml_msg:
                 if m["type"] == "human":
                     messages.append(HumanMessage.model_validate(m))
+                elif m["type"] == "AIMessageChunk":
+                    messages.append(AIMessageChunk.model_validate(m))
                 elif m["type"] == "ai":
                     messages.append(AIMessage.model_validate(m))
                 elif m["type"] == "tool":
@@ -71,13 +75,13 @@ async def main():
 
     # Display chat messages
     for message in messages:
-        if message.type in ["ai", "human"]:
-            with st.chat_message(message.type):
-                if isinstance(message.content, str):
+        if message.type in ["human", "ai", "AIMessageChunk"]:
+            with st.chat_message("human" if message.type == "human" else "assistant"):
+                if isinstance(message.content, str) and message.content:
                     st.write(message.content)
                 elif isinstance(message.content, list):
                     for content in message.content:
-                        if "text" in content:
+                        if "text" in content and content["text"]:
                             st.write(content["text"])
 
     # Process when input in chat box

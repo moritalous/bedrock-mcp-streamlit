@@ -2,7 +2,6 @@ import json
 
 from langchain.chat_models import init_chat_model
 from langchain_core.messages import (
-    AIMessage,
     HumanMessage,
     SystemMessage,
     ToolMessage,
@@ -26,10 +25,12 @@ class MessageProcessor:
     async def _process_chunk(self, chunk, container, out):
         raise NotImplementedError("Subclasses must implement _process_chunk")
 
+    async def _post_process_chunk(self, chunk, container, out):
+        raise NotImplementedError("Subclasses must implement _process_chunk")
+
     async def process_message(self, prompt, messages, container):
         chat_model = init_chat_model(
-            model_provider=self.model_provider,
-            model=self.model,
+            model_provider=self.model_provider, model=self.model
         )
 
         # Read MCP tool definitions
@@ -56,9 +57,11 @@ class MessageProcessor:
                     else:
                         gathered = gathered + chunk
 
-                await self._process_chunk(gathered, container, out)
+                    await self._process_chunk(gathered, container, out)
 
-                messages.append(AIMessage(gathered.content))
+                await self._post_process_chunk(gathered, container, out)
+
+                messages.append(gathered)
 
                 # Execute tool
                 if gathered.tool_calls:
@@ -67,9 +70,7 @@ class MessageProcessor:
                             tool_call["name"].lower()
                         ]
 
-                        container.expander("Tool Call", expanded=False).write(
-                            tool_call
-                        )
+                        container.expander("Tool Call", expanded=False).write(tool_call)
 
                         try:
                             tool_msg = await selected_tool.ainvoke(tool_call)
@@ -90,44 +91,35 @@ class MessageProcessor:
 
 class BedrockProcessor(MessageProcessor):
     async def _process_chunk(self, gathered, container, out):
-        # Convert input from string to JSON to break through Converse API validation check
-        for n, _ in enumerate(gathered.content):
-            if gathered.content[n]["type"] == "tool_use":
-                gathered.content[n]["input"] = json.loads(gathered.content[n]["input"])
-
         for content in gathered.content:
-            index = str(content["index"])
-
             if content["type"] == "text":
+                index = str(content["index"])
+
                 if index not in out:
                     out[index] = container.chat_message("assistant").empty()
 
                 out[index].write(content["text"])
 
+    async def _post_process_chunk(self, gathered, container, out):
+        # Convert input from string to JSON to break through Converse API validation check
+        for n, _ in enumerate(gathered.content):
+            if gathered.content[n]["type"] == "tool_use" and isinstance(
+                gathered.content[n]["input"], str
+            ):
+                gathered.content[n]["input"] = json.loads(gathered.content[n]["input"])
 
-class GeminiProcessor(MessageProcessor):
+
+class OpenAIProcessor(MessageProcessor):
     async def _process_chunk(self, gathered, container, out):
-        # Control when AI returns silently (blank)
-        if isinstance(gathered.content, str) and gathered.content == "":
-            gathered.content = "{{empty}}"
-        elif isinstance(gathered.content, list):
-            for n, _ in enumerate(gathered.content):
-                if gathered.content[n]["content"] == "":
-                    gathered.content[n]["content"] = "{{empty}}"
+        if gathered.content:
+            index = str(gathered.id)
+            if index not in out:
+                out[index] = container.chat_message("assistant").empty()
 
-        index = str(gathered.id)
-        if index not in out:
-            out[index] = container.chat_message("assistant").empty()
-        out[index].write(gathered.content)
+            out[index].write(gathered.content)
 
-
-class GrokProcessor(MessageProcessor):
-    async def _process_chunk(self, gathered, container, out):
-        index = str(gathered.id)
-        if index not in out:
-            out[index] = container.chat_message("assistant").empty()
-
-        out[index].write(gathered.content)
+    async def _post_process_chunk(self, gathered, container, out):
+        pass
 
 
 class MessageProcessorFactory:
@@ -135,11 +127,9 @@ class MessageProcessorFactory:
         self.mcp_config_file = mcp_config_file
 
     def create_processor(self, model_provider, model):
-        if model_provider == "bedrock":
+        if model_provider == "bedrock_converse":
             return BedrockProcessor(model_provider, model, self.mcp_config_file)
-        elif model_provider == "google_genai":
-            return GeminiProcessor(model_provider, model, self.mcp_config_file)
-        elif model_provider == "xai":
-            return GrokProcessor(model_provider, model, self.mcp_config_file)
+        elif model_provider in ["openai", "google_genai", "xai"]:
+            return OpenAIProcessor(model_provider, model, self.mcp_config_file)
         else:
             raise ValueError(f"Unsupported model provider: {model_provider}")
