@@ -14,7 +14,7 @@ from langchain_core.messages import (
     ToolMessage,
 )
 
-from util import MessageProcessor
+from util import MessageProcessorFactory
 
 load_dotenv()
 
@@ -109,7 +109,8 @@ async def main():
         with st.chat_message("user"):
             st.write(prompt)
 
-        message_processor = MessageProcessor(
+        message_processor_factory = MessageProcessorFactory()
+        message_processor = message_processor_factory.create_processor(
             model_provider=models[selected_model]["model_provider"],
             model=models[selected_model]["model"],
         )
