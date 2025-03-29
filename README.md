@@ -4,7 +4,7 @@ This is a chat application built with Streamlit that integrates with MCP (Model 
 
 ## Overview
 
-The application uses Langchain and Bedrock to create a chat model and interacts with MCP servers defined in `mcp_config.json` to access various tools.
+The application uses Langchain and Bedrock to create a chat model, using the model specified in `config.json` as a parameter for Langchain's `init_chat_model` function (see [https://python.langchain.com/docs/how_to/chat_models_universal_init/](https://python.langchain.com/docs/how_to/chat_models_universal_init/)). It interacts with MCP (Model Context Protocol) servers defined in `mcp_config.json` to access various tools. MCP is an open protocol that standardizes how applications provide context to LLMs (see [https://modelcontextprotocol.io/](https://modelcontextprotocol.io/)). The chat history is saved in YAML files. The `util.py` module defines `MessageProcessor` and its subclasses, which handle the processing of messages using different models.
 
 ## Features
 
@@ -17,17 +17,15 @@ The application uses Langchain and Bedrock to create a chat model and interacts 
 
 - streamlit
 - langchain
-- langchain_core
+- langchain-aws
 - langchain_mcp_adapters
-- asyncio
-- json
 
 ## Setup
 
 1.  Install the dependencies:
 
     ```bash
-    pip install streamlit langchain langchain_core langchain_mcp_adapters
+    pip install streamlit langchain langchain-aws langchain_mcp_adapters
     ```
 
 2.  Configure the MCP servers in `mcp_config.json`.
