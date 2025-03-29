@@ -102,7 +102,7 @@ class BedrockProcessor(MessageProcessor):
 
 class GeminiProcessor(MessageProcessor):
     async def _process_chunk(self, gathered, container, out):
-        # たまにAIが無言（空白）で返答してくるのを制御
+        # Control when AI returns silently (blank)
         if isinstance(gathered.content, str) and gathered.content == "":
             gathered.content = "{{empty}}"
         elif isinstance(gathered.content, list):
