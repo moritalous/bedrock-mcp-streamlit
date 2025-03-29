@@ -23,214 +23,106 @@ class MessageProcessor:
         self.model = model
         self.mcp_config_file = mcp_config_file
 
+    async def _process_chunk(self, chunk, container, out):
+        raise NotImplementedError("Subclasses must implement _process_chunk")
+
     async def process_message(self, prompt, messages, container):
-        raise NotImplementedError("Subclasses must implement process_message")
+        chat_model = init_chat_model(
+            model_provider=self.model_provider,
+            model=self.model,
+        )
+
+        # Read MCP tool definitions
+        with open(self.mcp_config_file, "r") as f:
+            config = json.load(f)
+
+        # Generate MCP client
+        async with MultiServerMCPClient(config["mcpServers"]) as mcp_client:
+            tools = mcp_client.get_tools()
+            chain = chat_model.bind_tools(tools)
+
+            messages.append(HumanMessage(prompt))
+            # Loop until tool_calls disappear
+            while True:
+                gathered = None
+                first = True
+                out = {}
+                async for chunk in chain.astream(
+                    [SystemMessage(SYSTEM_PROMPT)] + messages
+                ):
+                    if first:
+                        gathered = chunk
+                        first = False
+                    else:
+                        gathered = gathered + chunk
+
+                await self._process_chunk(gathered, container, out)
+
+                messages.append(AIMessage(gathered.content))
+
+                # Execute tool
+                if gathered.tool_calls:
+                    for tool_call in gathered.tool_calls:
+                        selected_tool = {tool.name: tool for tool in tools}[
+                            tool_call["name"].lower()
+                        ]
+                        try:
+                            tool_msg = await selected_tool.ainvoke(tool_call)
+
+                        except Exception as e:
+                            tool_msg = ToolMessage(str(e), tool_call_id=tool_call["id"])
+
+                        container.expander("Tool Result", expanded=False).write(
+                            tool_msg
+                        )
+
+                        messages.append(tool_msg)
+                else:
+                    break
+
+        return messages
 
 
 class BedrockProcessor(MessageProcessor):
-    async def process_message(self, prompt, messages, container):
-        chat_model = init_chat_model(
-            model_provider=self.model_provider,
-            model=self.model,
-        )
+    async def _process_chunk(self, gathered, container, out):
+        # Convert input from string to JSON to break through Converse API validation check
+        for n, _ in enumerate(gathered.content):
+            if gathered.content[n]["type"] == "tool_use":
+                gathered.content[n]["input"] = json.loads(gathered.content[n]["input"])
 
-        # Read MCP tool definitions
-        with open(self.mcp_config_file, "r") as f:
-            config = json.load(f)
+        for content in gathered.content:
+            index = str(content["index"])
 
-        # Generate MCP client
-        async with MultiServerMCPClient(config["mcpServers"]) as mcp_client:
-            tools = mcp_client.get_tools()
-            chain = chat_model.bind_tools(tools)
+            if content["type"] == "text":
+                if index not in out:
+                    out[index] = container.chat_message("assistant").empty()
 
-            messages.append(HumanMessage(prompt))
-            # Loop until tool_calls disappear
-            while True:
-                gathered = None
-                first = True
-                out = {}
-                async for chunk in chain.astream(
-                    [SystemMessage(SYSTEM_PROMPT)] + messages
-                ):
-                    if first:
-                        gathered = chunk
-                        first = False
-                    else:
-                        gathered = gathered + chunk
-
-                    # Assuming gathered.content is a list
-                    for content in gathered.content:
-                        index = str(content["index"])
-
-                        if content["type"] == "text":
-                            if index not in out:
-                                out[index] = container.chat_message("assistant").empty()
-
-                            out[index].write(content["text"])
-
-                # Convert input from string to JSON to break through Converse API validation check
-                for n, _ in enumerate(gathered.content):
-                    if gathered.content[n]["type"] == "tool_use":
-                        gathered.content[n]["input"] = json.loads(
-                            gathered.content[n]["input"]
-                        )
-
-                messages.append(AIMessage(gathered.content))
-
-                # Execute tool
-                if gathered.tool_calls:
-                    for tool_call in gathered.tool_calls:
-                        selected_tool = {tool.name: tool for tool in tools}[
-                            tool_call["name"].lower()
-                        ]
-                        try:
-                            tool_msg = await selected_tool.ainvoke(tool_call)
-
-                        except Exception as e:
-                            tool_msg = ToolMessage(str(e), tool_call_id=tool_call["id"])
-
-                        container.expander("Tool Result", expanded=False).write(
-                            tool_msg
-                        )
-
-                        messages.append(tool_msg)
-                else:
-                    break
-
-        return messages
+                out[index].write(content["text"])
 
 
 class GeminiProcessor(MessageProcessor):
-    async def process_message(self, prompt, messages, container):
-        chat_model = init_chat_model(
-            model_provider=self.model_provider,
-            model=self.model,
-        )
+    async def _process_chunk(self, gathered, container, out):
+        # たまにAIが無言（空白）で返答してくるのを制御
+        if isinstance(gathered.content, str) and gathered.content == "":
+            gathered.content = "{{empty}}"
+        elif isinstance(gathered.content, list):
+            for n, _ in enumerate(gathered.content):
+                if gathered.content[n]["content"] == "":
+                    gathered.content[n]["content"] = "{{empty}}"
 
-        # Read MCP tool definitions
-        with open(self.mcp_config_file, "r") as f:
-            config = json.load(f)
-
-        # Generate MCP client
-        async with MultiServerMCPClient(config["mcpServers"]) as mcp_client:
-            tools = mcp_client.get_tools()
-            chain = chat_model.bind_tools(tools)
-
-            messages.append(HumanMessage(prompt))
-            # Loop until tool_calls disappear
-            while True:
-                gathered = None
-                first = True
-                out = {}
-                async for chunk in chain.astream(
-                    [SystemMessage(SYSTEM_PROMPT)] + messages
-                ):
-                    if first:
-                        gathered = chunk
-                        first = False
-                    else:
-                        gathered = gathered + chunk
-
-                    # ModelProviderB specific processing
-
-                    index = str(gathered.id)
-                    if index not in out:
-                        out[index] = container.chat_message("assistant").empty()
-                    out[index].write(gathered.content)
-
-                # たまにAIが無言（空白）で返答してくるのを制御
-                if isinstance(gathered.content, str) and gathered.content == "":
-                    gathered.content = "{{empty}}"
-                elif isinstance(gathered.content, list):
-                    for n, _ in enumerate(gathered.content):
-                        if gathered.content[n]["content"] == "":
-                            gathered.content[n]["content"] = "{{empty}}"
-
-                messages.append(AIMessage(gathered.content))
-
-                # Execute tool
-                if gathered.tool_calls:
-                    for tool_call in gathered.tool_calls:
-                        selected_tool = {tool.name: tool for tool in tools}[
-                            tool_call["name"].lower()
-                        ]
-                        try:
-                            tool_msg = await selected_tool.ainvoke(tool_call)
-
-                        except Exception as e:
-                            tool_msg = ToolMessage(str(e), tool_call_id=tool_call["id"])
-
-                        container.expander("Tool Result", expanded=False).write(
-                            tool_msg
-                        )
-
-                        messages.append(tool_msg)
-                else:
-                    break
-
-        return messages
+        index = str(gathered.id)
+        if index not in out:
+            out[index] = container.chat_message("assistant").empty()
+        out[index].write(gathered.content)
 
 
 class GrokProcessor(MessageProcessor):
-    async def process_message(self, prompt, messages, container):
-        chat_model = init_chat_model(
-            model_provider=self.model_provider,
-            model=self.model,
-        )
+    async def _process_chunk(self, gathered, container, out):
+        index = str(gathered.id)
+        if index not in out:
+            out[index] = container.chat_message("assistant").empty()
 
-        # Read MCP tool definitions
-        with open(self.mcp_config_file, "r") as f:
-            config = json.load(f)
-
-        # Generate MCP client
-        async with MultiServerMCPClient(config["mcpServers"]) as mcp_client:
-            tools = mcp_client.get_tools()
-            chain = chat_model.bind_tools(tools)
-
-            messages.append(HumanMessage(prompt))
-            # Loop until tool_calls disappear
-            while True:
-                gathered = None
-                first = True
-                out = {}
-                async for chunk in chain.astream(
-                    [SystemMessage(SYSTEM_PROMPT)] + messages
-                ):
-                    if first:
-                        gathered = chunk
-                        first = False
-                    else:
-                        gathered = gathered + chunk
-
-                    index = "0"
-                    if index not in out:
-                        out[index] = container.chat_message("assistant").empty()
-
-                    out[index].write(gathered.content)
-
-                messages.append(AIMessage(gathered.content))
-
-                # Execute tool
-                if gathered.tool_calls:
-                    for tool_call in gathered.tool_calls:
-                        selected_tool = {tool.name: tool for tool in tools}[
-                            tool_call["name"].lower()
-                        ]
-                        try:
-                            tool_msg = await selected_tool.ainvoke(tool_call)
-
-                        except Exception as e:
-                            tool_msg = ToolMessage(str(e), tool_call_id=tool_call["id"])
-
-                        container.expander("Tool Result", expanded=False).write(
-                            tool_msg
-                        )
-
-                        messages.append(tool_msg)
-                else:
-                    break
-
-        return messages
+        out[index].write(gathered.content)
 
 
 class MessageProcessorFactory:
