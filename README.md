@@ -1,36 +1,45 @@
 # Bedrock Chat with MCP tool
 
-This is a chat application built with Streamlit that integrates with MCP (Model Context Protocol) tools.
+This is a chat application built with Streamlit and integrated with the MCP (Model Context Protocol) tool.
 
 ## Overview
 
-The application uses Langchain and Bedrock to create a chat model, using the model specified in `config.json` as a parameter for Langchain's `init_chat_model` function (see [https://python.langchain.com/docs/how_to/chat_models_universal_init/](https://python.langchain.com/docs/how_to/chat_models_universal_init/)). It interacts with MCP (Model Context Protocol) servers defined in `mcp_config.json` to access various tools. MCP is an open protocol that standardizes how applications provide context to LLMs (see [https://modelcontextprotocol.io/](https://modelcontextprotocol.io/)). The chat history is saved in YAML files. The `util.py` module defines `MessageProcessor` and its subclasses, which handle the processing of messages using different models.
+Bedrock Chat with MCP tool is a chat application built with Streamlit and integrated with the MCP (Model Context Protocol) tool.
+
+This application uses Langchain and Bedrock to create a chat model and uses the model specified in `config.json` as a parameter in Langchain's `init_chat_model` function ([https://python.langchain.com/docs/how_to/chat_models_universal_init/](https://python.langchain.com/docs/how_to/chat_models_universal_init/)). It interacts with the MCP (Model Context Protocol) server defined in `mcp_config.json` and accesses various tools. MCP is an open protocol that standardizes how applications provide context to LLM ([https://modelcontextprotocol.io/](https://modelcontextprotocol.io/)). Chat history is stored in a YAML file. The `util.py` module defines `MessageProcessor` and its subclasses to handle message processing using different models.
+
+The `config.json` file allows you to configure the LLM model to use, where the chat history files are stored, etc.
+The `mcp_config.json` file describes the configuration of the MCP server.
+
+In the Streamlit sidebar, you can configure the following:
+- Select LLM model
+- Change chat history directory
+- Change MCP configuration file
+- Select past chat history
 
 ## Features
 
 - Chat interface using Streamlit
 - Integration with MCP tools
-- Uses Langchain and Bedrock for chat model
-- Reads MCP server configurations from `mcp_config.json`
-
-## Dependencies
-
-- streamlit
-- langchain
-- langchain-aws
-- langchain_mcp_adapters
+- Use Langchain and Bedrock for chat model
+- LLM model etc. can be configured in `config.json`
+- MCP tool integration
+- Use Langchain and Bedrock
+- Read MCP server settings from `mcp_config.json`
+- Save chat history in YAML format
+- Can change settings from Streamlit sidebar
 
 ## Setup
 
-1.  Install the dependencies:
+1. Install dependencies:
 
     ```bash
     pip install streamlit langchain langchain-aws langchain_mcp_adapters
     ```
 
-2.  Configure the MCP servers in `mcp_config.json`.
+2. Configure MCP server in `mcp_config.json`.
 
-3.  Run the application:
+3. Run the application.
 
     ```bash
     streamlit run src/main.py
@@ -38,7 +47,28 @@ The application uses Langchain and Bedrock to create a chat model, using the mod
 
 ## Configuration
 
-The `mcp_config.json` file should contain the configuration for the MCP servers.  For example:
+The `config.json` file is where you configure the LLM model and other settings.
+
+```json
+{
+  "chat_history_dir": "chat_history",
+  "mcp_config_file": "mcp_config.json",
+  "models": {
+    "Claude 3.7 Sonnet": {
+      "model_provider": "bedrock_converse",
+      "model": "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
+    },
+    "Amazon Nova Pro": {
+      "model_provider": "bedrock_converse",
+      "model": "us.amazon.nova-pro-v1:0"
+    },
+  },
+}
+```
+
+The `mcp_config.json` file contains the settings for the MCP server.
+
+Please note that `transport` is required.
 
 ```json
 {
@@ -48,7 +78,8 @@ The `mcp_config.json` file should contain the configuration for the MCP servers.
       "args": ["..."],
       "env": {
         "API_KEY": "..."
-      }
+      },
+      "transport": "..."
     }
   }
 }
@@ -56,11 +87,21 @@ The `mcp_config.json` file should contain the configuration for the MCP servers.
 
 ## Usage
 
-1.  Run the application using `streamlit run src/main.py`.
-2.  Enter your message in the chat input.
-3.  The application will respond using the chat model and MCP tools.
+To run the Streamlit application, run the following command.
+
+```bash
+streamlit run src/main.py
+```
+
+Once the application is running, enter a message in the chat input box.
+After sending, the chat model and MCP tool will generate a response.
+
+In the sidebar, you can configure the LLM model, chat history directory, and MCP config file.
+You can also select past chat history and resume the conversation.
 
 ## Notes
 
-- Make sure to configure the MCP servers correctly in `mcp_config.json` before running the application.
-- You need to have access to Bedrock to use this application.
+- Write the MCP server configuration in `mcp_config.json`.
+- To use Bedrock, you need an AWS account.
+- Chat history is stored in a YAML file.
+- `config.json` and `mcp_config.json` must be in the same directory as your application.
