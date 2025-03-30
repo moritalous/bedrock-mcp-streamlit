@@ -135,3 +135,51 @@ class MessageProcessorFactory:
             return OpenAIProcessor(model_provider, model, self.mcp_config_file)
         else:
             raise ValueError(f"Unsupported model provider: {model_provider}")
+
+
+async def generate_system_prompt(
+    model_provider, model, mcp_config_file="mcp_config.json"
+):
+    with open(mcp_config_file, "r") as f:
+        config = json.load(f)
+
+    async with MultiServerMCPClient(config["mcpServers"]) as mcp_client:
+        tools = mcp_client.get_tools()
+
+    tool_definition = [
+        {"name": tool.name, "description": tool.description, "args": tool.args}
+        for tool in tools
+    ]
+
+    chat_model = init_chat_model(model_provider=model_provider, model=model)
+
+    prompt = f"""
+    You are an expert in generative AI, particularly large language models.  
+    The user is struggling with creating appropriate prompts. Do your best to help them.  
+
+    **User's concern:**  
+        They are building an application that calls external tools, but the tools are not being invoked as expected.
+        For example, when a user inputs, *"Tell me how to make curry,"* the AI attempts to answer using only its built-in capabilities. However, the expected behavior is for the AI to use the web search tool before responding.
+        When the user explicitly inputs, *"Search the web for how to make curry and tell me,"* the AI behaves as expected. But the goal is for the AI to determine the appropriate tool to call even when the user does not explicitly specify it.
+        
+        (The application is a general-purpose AI chatbot, so the questions will not be limited to recipes but will cover a wide range of topics.)
+
+        The following tools are defined:  
+
+        <tool_definition>
+        {json.dumps(tool_definition, indent=1, ensure_ascii=False)}
+        </tool_definition>
+
+        Generate a **system prompt** that ensures the tools are invoked appropriately as expected.
+
+    Wrap the system prompt with `<SYSTEM_PROMPT></SYSTEM_PROMPT>` tags.  
+        
+    Do you understand the user's concern?  
+    Think step by step before responding.
+    """.strip()
+
+    response = chat_model.invoke(prompt)
+
+    content = response.content
+
+    return content

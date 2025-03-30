@@ -22,6 +22,15 @@ from util import MessageProcessorFactory
 load_dotenv()
 
 
+@st.dialog("SYSTEM_PROMPT", width="large")
+def show_system_prompt(system_prompt):
+    st.write("If you like it, please use it by reflecting it in SYSTEM_PROMPT of `prompts.py`.")
+
+    st.markdown(f"""````
+        {system_prompt}
+        """)
+
+
 async def main():
     with open("config.json", "r") as f:
         config = json.load(f)
@@ -30,6 +39,18 @@ async def main():
 
     def select_chat(chat_history_file):
         st.session_state.chat_history_file = chat_history_file
+
+    async def generate_system_prompt():
+        from util import generate_system_prompt
+
+        with st.spinner("Generating..."):
+            system_prompt = await generate_system_prompt(
+                model_provider=models[selected_model]["model_provider"],
+                model=models[selected_model]["model"],
+                mcp_config_file=mcp_config_file,
+            )
+
+            show_system_prompt(system_prompt)
 
     with st.sidebar:
         with st.expander(":gear: config", expanded=True):
@@ -40,6 +61,11 @@ async def main():
             mcp_config_file = st.text_input(
                 "mcp_config_file", value=config["mcp_config_file"]
             )
+
+            if st.button(
+                "Generate System Prompt from mcp_config",
+            ):
+                await generate_system_prompt()
 
         st.button(
             "New Chat",
